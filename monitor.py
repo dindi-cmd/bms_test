@@ -10,9 +10,10 @@ options.add_argument("--headless")
 options.add_argument("--no-sandbox")
 options.add_argument("--disable-dev-shm-usage")
 
-# 👇 THIS IS THE KEY FIX
+# ✅ VERY IMPORTANT (fix chrome path)
 options.binary_location = "/usr/bin/chromium-browser"
 
+# ✅ VERY IMPORTANT (fix driver path)
 service = Service("/usr/bin/chromedriver")
 
 driver = webdriver.Chrome(service=service, options=options)
