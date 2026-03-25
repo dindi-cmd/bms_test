@@ -43,7 +43,7 @@ def check_seats():
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
 
-    driver = webdriver.Chrome(options=options)
+    driver = webdriver.Chrome(service=service, options=options)
     driver.get(URL)
 
     time.sleep(5)  # wait for seats to load
