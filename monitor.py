@@ -1,23 +1,14 @@
 import time
 import os
 import requests
+
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 
-options = Options()
-options.add_argument("--headless")
-options.add_argument("--no-sandbox")
-options.add_argument("--disable-dev-shm-usage")
-
-# ✅ VERY IMPORTANT (fix chrome path)
-options.binary_location = "/usr/bin/chromium-browser"
-
-# ✅ VERY IMPORTANT (fix driver path)
-service = Service("/usr/bin/chromedriver")
-
-driver = webdriver.Chrome(service=service, options=options)
 
 # ===== CONFIG =====
 URL = "https://in.bookmyshow.com/movies/hyd/seat-layout/ET00492371/ALUC/193/20260326"
@@ -31,32 +22,64 @@ THRESHOLD = 30
 # ===== TELEGRAM FUNCTION =====
 def send_telegram(msg):
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
-    requests.post(url, data={
+    response = requests.post(url, data={
         "chat_id": CHAT_ID,
         "text": msg
     })
+    print("Telegram response:", response.text)
 
 
 # ===== MAIN FUNCTION =====
 def check_seats():
     options = Options()
-    options.add_argument("--headless")  # run without opening browser
+    options.add_argument("--headless")
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
+
+    # IMPORTANT for GitHub
+    options.binary_location = "/usr/bin/chromium-browser"
+
+    service = Service("/usr/bin/chromedriver")
 
     driver = webdriver.Chrome(service=service, options=options)
     driver.get(URL)
 
-    time.sleep(5)  # wait for seats to load
+    # wait for page load
+    WebDriverWait(driver, 20).until(
+        EC.presence_of_element_located((By.TAG_NAME, "body"))
+    )
 
-    # find available seats
-    seats = driver.find_elements(By.CSS_SELECTOR, "[class*='available']")
-    available_count = len(seats)
+    # scroll to ensure seats load
+    time.sleep(5)
+    driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+    time.sleep(3)
+
+    # ===== SEAT DETECTION =====
+    seats = driver.find_elements(By.XPATH, "//a")
+
+    available_count = 0
+
+    for seat in seats:
+        text = seat.text.strip()
+        cls = (seat.get_attribute("class") or "").lower()
+
+        # seat must have number
+        if text.isdigit():
+
+            # skip sold seats
+            if "sold" in cls or "blocked" in cls:
+                continue
+
+            # skip selected seats (green filled)
+            if "selected" in cls:
+                continue
+
+            # remaining = available
+            available_count += 1
 
     print(f"Available seats: {available_count}")
 
     driver.quit()
-
     return available_count
 
 
