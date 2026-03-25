@@ -62,6 +62,7 @@ def check_seats():
     for seat in seats:
         text = seat.text.strip()
         cls = (seat.get_attribute("class") or "").lower()
+        print(text, cls)
 
         # seat must have number
         if text.isdigit():
