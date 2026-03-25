@@ -1,6 +1,9 @@
-import requests
-from bs4 import BeautifulSoup
+import time
 import os
+import requests
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.chrome.options import Options
 
 # ===== CONFIG =====
 URL = "https://in.bookmyshow.com/movies/hyd/seat-layout/ET00492371/ALUC/193/20260326"
@@ -8,21 +11,10 @@ URL = "https://in.bookmyshow.com/movies/hyd/seat-layout/ET00492371/ALUC/193/2026
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 CHAT_ID = os.getenv("CHAT_ID")
 
-# ===== CHECK FUNCTION =====
-def check_availability():
-    headers = {
-        "User-Agent": "Mozilla/5.0"
-    }
-
-    res = requests.get(URL, headers=headers)
-    html = res.text
-
-    if "Sold Out" in html or "sold out" in html:
-        return False
-    return True
+THRESHOLD = 30
 
 
-# ===== TELEGRAM ALERT =====
+# ===== TELEGRAM FUNCTION =====
 def send_telegram(msg):
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
     requests.post(url, data={
@@ -31,11 +23,34 @@ def send_telegram(msg):
     })
 
 
-# ===== MAIN =====
-if __name__ == "__main__":
-    available = check_availability()
+# ===== MAIN FUNCTION =====
+def check_seats():
+    options = Options()
+    options.add_argument("--headless")  # run without opening browser
+    options.add_argument("--no-sandbox")
+    options.add_argument("--disable-dev-shm-usage")
 
-    if available:
-        send_telegram("🎟 Tickets might be AVAILABLE! Check now!")
+    driver = webdriver.Chrome(options=options)
+    driver.get(URL)
+
+    time.sleep(5)  # wait for seats to load
+
+    # find available seats
+    seats = driver.find_elements(By.CSS_SELECTOR, "[class*='available']")
+    available_count = len(seats)
+
+    print(f"Available seats: {available_count}")
+
+    driver.quit()
+
+    return available_count
+
+
+# ===== RUN =====
+if __name__ == "__main__":
+    seats = check_seats()
+
+    if seats > THRESHOLD:
+        send_telegram(f"🎟 {seats} seats available! Book now!")
     else:
-        print("No tickets yet...")
+        print("Not enough seats yet...")
